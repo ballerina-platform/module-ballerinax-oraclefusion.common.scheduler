@@ -38,13 +38,6 @@ public type CallbackSubscriptionRequest record {
     string ouath2ClientCsfKey?;
 };
 
-# OAuth2 Client Credentials Grant Configs
-public type OAuth2ClientCredentialsGrantConfig record {|
-    *http:OAuth2ClientCredentialsGrantConfig;
-    # Token URL
-    string tokenUrl = "https://your-idcs-instance.identity.oraclecloud.com/oauth2/v1/token";
-|};
-
 public type Recurrence record {
     # RFC 5545 RRULE recurrence pattern.
     string icalString;
@@ -86,14 +79,17 @@ public type SubmitRequestBody record {
     RequestParameter[] requestParameters?;
     string description?;
     string requestLogLevel?;
+    # Request priority, 0-9. Oracle applies its own default (documented as 4) when omitted.
     @constraint:Int {minValue: 0, maxValue: 9}
-    int priority = 4;
-    int retries = 0;
+    int priority?;
+    # Number of automatic retries on failure. Oracle applies its own default (documented as 0) when omitted.
+    int retries?;
     ScheduleBase schedule?;
     string application?;
     string requestCategory?;
     string startTime?;
-    boolean executePast = true;
+    # Whether schedule occurrences whose time has already passed are still executed. Oracle applies its own default (documented as true) when omitted.
+    boolean executePast?;
     string endTime?;
     CallbackSubscriptionRequest callbackSubscription?;
     int requestTimeout?;
@@ -165,7 +161,7 @@ public type SubmitRequestResponse record {
 @display {label: "Connection Config"}
 public type ConnectionConfig record {|
     # Configurations related to client authentication
-    OAuth2ClientCredentialsGrantConfig|http:CredentialsConfig auth;
+    http:OAuth2ClientCredentialsGrantConfig|http:CredentialsConfig auth;
     # The HTTP version understood by the client
     http:HttpVersion httpVersion = http:HTTP_2_0;
     # Configurations related to HTTP/1.x protocol

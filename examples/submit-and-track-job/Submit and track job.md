@@ -2,7 +2,9 @@
 
 This example submits an Oracle Fusion scheduled process (ESS job) and then tracks it to completion.
 
-`submitJobRequest` posts the job definition together with its job-specific request parameters and returns the ID of the newly created request. That ID is passed to `getJobRequest`, which is polled until the request reaches a terminal state (`SUCCEEDED`, `ERROR`, `WARNING`, `CANCELLED`, `EXPIRED`, `VALIDATION_FAILED`, `ERROR_AUTO_RETRY` or `FINISHED`). The final state, state description and elapsed time are then printed, along with the error type when the request failed.
+`submitJobRequest` posts the job definition together with its job-specific request parameters and returns the ID of the newly created request. That ID is passed to `getJobRequest`, which is polled until the request reaches a terminal state (`SUCCEEDED`, `ERROR`, `WARNING`, `CANCELLED`, `EXPIRED`, `VALIDATION_FAILED` or `FINISHED`). `ERROR_AUTO_RETRY` is not treated as terminal — it means the scheduler will retry the request, so polling continues until that retry settles. The final state, state description and elapsed time are then printed, along with the error type when the request failed.
+
+Polling is bounded by `maxPollAttempts` (20 polls, 15 seconds apart — roughly five minutes). If the request has not reached a terminal state by then, the example fails with an error rather than reporting an outcome it never observed. The request itself keeps running in Fusion — it is not cancelled — so raise `maxPollAttempts` for job definitions that routinely run longer.
 
 This is the standard submit-then-poll flow for any scheduled process. Oracle's Scheduler API is asynchronous — the submit call returns as soon as the request is queued, so the request state must be polled to learn the outcome.
 

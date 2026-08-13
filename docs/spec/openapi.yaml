@@ -12,12 +12,6 @@ info:
     .../farca/op-ess-rest-scheduler-v1-requests-get.html /-post.html). Verify field
     names/enums against the target instance's actual release before use.
   version: "26b"
-servers:
-  - url: https://{fusionHost}/ess/rest/scheduler/v1
-    variables:
-      fusionHost:
-        default: your-fusion-instance.fa.us2.oraclecloud.com
-        description: Hostname of the target Oracle Fusion Cloud instance.
 security:
   - basicAuth: []
   - oauth2: []
@@ -26,6 +20,10 @@ paths:
     get:
       operationId: queryJobRequests
       summary: Query scheduled process (ESS) job requests
+      description: >
+        Returns a paginated collection of Enterprise Scheduler job requests. Use `q` to filter
+        by request attributes, `id` to fetch a specific set of request IDs, `fields`/`excludeFields`
+        to shape the response payload, and `orderBy` to sort the results.
       parameters:
         - name: q
           in: query
@@ -68,6 +66,10 @@ paths:
     post:
       operationId: submitJobRequest
       summary: Submit a new scheduled process (ESS) job request
+      description: >
+        Submits a job request to the Enterprise Scheduler. The request identifies the job
+        definition to run, any job-specific request parameters, and optionally a schedule for
+        recurring execution. Returns the ID of the newly created request.
       requestBody:
         required: true
         content:
@@ -95,6 +97,10 @@ paths:
     get:
       operationId: getJobRequest
       summary: Get a specific job request by ID
+      description: >
+        Retrieves the full detail of a single Enterprise Scheduler job request, including its
+        current execution state, state description, and the request parameters it was submitted
+        with. Use this to poll a request submitted via `submitJobRequest`.
       parameters:
         - name: requestId
           in: path
@@ -121,11 +127,12 @@ components:
       type: oauth2
       description: >
         OAuth2 client credentials against the instance's Oracle Identity Cloud Service (IDCS)
-        token endpoint. The token URL is entirely instance-specific - the value below is a
-        placeholder and must be replaced with the target instance's IDCS token endpoint.
+        token endpoint. The token URL is entirely instance-specific, so it is deliberately left
+        empty here and must be supplied by the caller - any default would be a non-working
+        placeholder. OpenAPI requires the attribute to be present, so it cannot simply be omitted.
       flows:
         clientCredentials:
-          tokenUrl: https://your-idcs-instance.identity.oraclecloud.com/oauth2/v1/token
+          tokenUrl: ""
           scopes: {}
   schemas:
     RequestParameter:
@@ -219,13 +226,18 @@ components:
           type: integer
           minimum: 0
           maximum: 9
-          default: 4
+          description: >
+            Request priority, 0-9. Oracle applies its own default (documented as 4) when omitted.
         retries:
           type: integer
-          default: 0
+          description: >
+            Number of automatic retries on failure. Oracle applies its own default (documented as 0)
+            when omitted.
         executePast:
           type: boolean
-          default: true
+          description: >
+            Whether schedule occurrences whose time has already passed are still executed. Oracle
+            applies its own default (documented as true) when omitted.
         requestTimeout:
           type: integer
           format: int64

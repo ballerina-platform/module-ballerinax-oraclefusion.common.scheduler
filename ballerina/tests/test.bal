@@ -58,7 +58,67 @@ isolated function testQueryJobRequestsWithFilter() returns error? {
     RequestQueryResponse response = check scheduler->/requests(
         queries = {q: "state eq \"SUCCEEDED\"", orderBy: "submissionTime:desc", fields: "requestId,state,description"}
     );
-    test:assertTrue(response.items !is (), "Expected an items collection for the filtered query");
+    RequestDetails[] items = response.items ?: [];
+    test:assertTrue(items.length() > 0, "Expected at least one SUCCEEDED job request");
+
+    string previousSubmissionTime = "";
+    foreach RequestDetails item in items {
+        // `q` was applied - nothing outside the requested state came back.
+        test:assertEquals(item.state, "SUCCEEDED", "The `q` filter was not applied to the result");
+
+        // `fields` was applied - a field outside the projection is absent.
+        test:assertTrue(item.requestId !is (), "`requestId` was requested but is missing");
+        test:assertTrue(item.submitter is (), "`submitter` was outside `fields` but was returned");
+        test:assertTrue(item.jobDefinitionId is (), "`jobDefinitionId` was outside `fields` but was returned");
+
+        // `orderBy` was applied - submissionTime is non-increasing. Skipped when the field was
+        // projected away, which is the case here, so this only guards a widened `fields` list.
+        string submissionTime = item.submissionTime ?: "";
+        if previousSubmissionTime != "" && submissionTime != "" {
+            test:assertTrue(submissionTime <= previousSubmissionTime,
+                    "`orderBy` submissionTime:desc was not applied to the result");
+        }
+        previousSubmissionTime = submissionTime;
+    }
+}
+
+@test:Config {
+    groups: ["live_tests", "mock_tests"]
+}
+isolated function testQueryJobRequestsByIdAndExcludeFields() returns error? {
+    // Resolve a real request ID first so the test works against a live instance too.
+    RequestQueryResponse all = check scheduler->/requests(queries = {orderBy: "submissionTime:desc"});
+    RequestDetails[] allItems = all.items ?: [];
+    test:assertTrue(allItems.length() > 0, "Cannot resolve a requestId - the unfiltered query returned no items");
+
+    string previousSubmissionTime = "";
+    foreach RequestDetails item in allItems {
+        string submissionTime = item.submissionTime ?: "";
+        if previousSubmissionTime != "" && submissionTime != "" {
+            test:assertTrue(submissionTime <= previousSubmissionTime,
+                    "`orderBy` submissionTime:desc was not applied to the unfiltered query");
+        }
+        previousSubmissionTime = submissionTime;
+    }
+
+    int? resolvedRequestId = allItems[0].requestId;
+    if resolvedRequestId is () {
+        test:assertFail("The query response did not carry a requestId to filter on");
+    }
+
+    RequestQueryResponse response = check scheduler->/requests(
+        queries = {id: resolvedRequestId.toString(), excludeFields: "requestParameters,links"}
+    );
+
+    RequestDetails[] items = response.items ?: [];
+    // `id` was applied - exactly the requested request came back.
+    test:assertEquals(items.length(), 1, "The `id` filter was not applied to the result");
+    test:assertEquals(items[0].requestId, resolvedRequestId, "The `id` filter returned the wrong request");
+
+    // `excludeFields` was applied - the excluded fields are absent, others survive.
+    test:assertTrue(items[0].requestParameters is (), "`requestParameters` was excluded but was returned");
+    test:assertTrue(items[0].links is (), "`links` was excluded but was returned");
+    test:assertTrue(items[0].state !is (), "`state` was not excluded and should have been returned");
 }
 
 @test:Config {
@@ -87,9 +147,15 @@ isolated function testGetJobRequest() returns error? {
     RequestDetails[] items = queryResponse.items ?: [];
     test:assertTrue(items.length() > 0, "Cannot resolve a requestId to fetch - the query returned no items");
 
-    int requestId = items[0].requestId ?: 0;
-    RequestDetails response = check scheduler->/requests/[requestId]();
-    test:assertEquals(response.requestId, requestId, "Fetched the wrong job request");
+    int? resolvedRequestId = items[0].requestId;
+    if resolvedRequestId is () {
+        // Fail on the missing precondition itself. Falling back to a placeholder ID would fetch
+        // the wrong resource and let the assertions below pass against it.
+        test:assertFail("The query response did not carry a requestId to fetch");
+    }
+
+    RequestDetails response = check scheduler->/requests/[resolvedRequestId]();
+    test:assertEquals(response.requestId, resolvedRequestId, "Fetched the wrong job request");
     test:assertTrue(response.state !is (), "Expected the job request to carry an execution state");
 }
 

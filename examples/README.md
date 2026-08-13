@@ -5,7 +5,7 @@ The `ballerinax/oraclefusion.common.scheduler` connector provides practical exam
 | Example | Description |
 |---------|-------------|
 | [`submit-and-track-job`](./submit-and-track-job) | Submit a scheduled process (ESS job) and poll the resulting request until it reaches a terminal state, then report the final execution outcome. |
-| [`monitor-scheduled-processes`](./monitor-scheduled-processes) | Build an operational view over scheduled processes — list running requests, find failed ones, and drill into the most recent failure for its parameters and error detail. |
+| [`monitor-scheduled-processes`](./monitor-scheduled-processes) | Build an operational view over scheduled processes — list running requests, find the ones in the `ERROR` state, and drill into the most recent of those for its parameters and error detail. |
 
 ## Prerequisites
 

@@ -313,6 +313,7 @@ version = "0.1.0"
 dependencies = [
 	{org = "ballerina", name = "constraint"},
 	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "lang.regexp"},
 	{org = "ballerina", name = "os"},
 	{org = "ballerina", name = "url"},
 	{org = "ballerinai", name = "observe"}

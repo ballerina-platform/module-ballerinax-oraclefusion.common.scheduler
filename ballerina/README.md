@@ -20,8 +20,6 @@ https://{fusionHost}/ess/rest/scheduler/v1
 
 For example: `https://acme.fa.us2.oraclecloud.com/ess/rest/scheduler/v1`
 
-The generated client defaults `fusionHost` to a placeholder, so supply the full base URL at initialization.
-
 > **Note:** The generic Scheduler REST API is available from Oracle Fusion release 23B onwards. On earlier releases, use the product-specific ESS endpoints instead.
 
 ### Step 2: Provision a user with the required privileges
@@ -32,7 +30,7 @@ The generated client defaults `fusionHost` to a placeholder, so supply the full 
 
 ### Step 3: Identify the job definition to submit
 
-`submitJobRequest` takes a `jobDefinitionId` — the metadata object ID of the process, not its display name. It has the form:
+Submitting a request takes a `jobDefinitionId` — the metadata object ID of the process, not its display name. It has the form:
 
 ```text
 oracle/apps/ess/financials/payables/invoices/transactions/ImportPayablesInvoicesJob
@@ -77,7 +75,7 @@ import ballerinax/oraclefusion.common.scheduler;
 
 ### Step 2: Instantiate a new connector
 
-1. Create a `Config.toml` file and, configure the obtained credentials in the above steps as follows:
+1. Create a `Config.toml` file and configure the obtained credentials in the above steps as follows:
 
     ```toml
     serviceUrl = "https://<fusionHost>/ess/rest/scheduler/v1"
@@ -119,4 +117,4 @@ bal run
 The `Oraclefusion.common.scheduler` connector provides practical examples illustrating usage in various scenarios. Explore these [examples](https://github.com/ballerina-platform/module-ballerinax-oraclefusion.common.scheduler/tree/main/examples/), covering the following use cases:
 
 1. [Submit and track job](https://github.com/ballerina-platform/module-ballerinax-oraclefusion.common.scheduler/tree/main/examples/submit-and-track-job) - Submit a scheduled process and poll the resulting request until it reaches a terminal state, then report the final execution outcome.
-2. [Monitor scheduled processes](https://github.com/ballerina-platform/module-ballerinax-oraclefusion.common.scheduler/tree/main/examples/monitor-scheduled-processes) - Build an operational view over scheduled processes: list running requests, find failed ones, and drill into the most recent failure for its parameters and error detail.
+2. [Monitor scheduled processes](https://github.com/ballerina-platform/module-ballerinax-oraclefusion.common.scheduler/tree/main/examples/monitor-scheduled-processes) - Build an operational view over scheduled processes: list running requests, find the ones in the `ERROR` state, and drill into the most recent of those for its parameters and error detail.
