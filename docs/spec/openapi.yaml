@@ -1,0 +1,365 @@
+openapi: 3.0.3
+info:
+  title: Oracle Fusion Cloud Scheduler REST API
+  description: >
+    Hand-authored OpenAPI 3.0 contract for Oracle Fusion Cloud's generic Enterprise
+    Scheduler (ESS) REST API (introduced in release 23B), used to submit and monitor
+    scheduled process/job requests.
+
+    Oracle does not publish a machine-readable spec for this API - this document was
+    reconstructed from Oracle's public REST API reference documentation
+    (docs.oracle.com .../farca/api-scheduler.html and
+    .../farca/op-ess-rest-scheduler-v1-requests-get.html /-post.html). Verify field
+    names/enums against the target instance's actual release before use.
+  version: "26b"
+servers:
+  - url: https://{fusionHost}/ess/rest/scheduler/v1
+    variables:
+      fusionHost:
+        default: your-fusion-instance.fa.us2.oraclecloud.com
+        description: Hostname of the target Oracle Fusion Cloud instance.
+security:
+  - basicAuth: []
+  - oauth2: []
+paths:
+  /requests:
+    get:
+      operationId: queryJobRequests
+      summary: Query scheduled process (ESS) job requests
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: >
+            SCIM-style filter, e.g. state eq "RUNNING". Queryable fields include
+            requestId, absParentRequestId, description, application, product,
+            requestCategory, runAsUser, executionType, jobDefinitionId, state,
+            priority, processStartTime, processEndTime, requestedStartTime,
+            requestedEndTime, submissionTime, parentRequestId, elapsedTime,
+            submitter, requestType, errorType, completedTime, and more.
+        - name: fields
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of fields to include in the response.
+        - name: excludeFields
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of fields to exclude from the response.
+        - name: id
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of request IDs to return.
+        - name: orderBy
+          in: query
+          schema:
+            type: string
+          description: "fieldName[:asc|desc], e.g. name:asc"
+      responses:
+        '200':
+          description: Matching job requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestQueryResponse'
+    post:
+      operationId: submitJobRequest
+      summary: Submit a new scheduled process (ESS) job request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitRequestBody'
+      responses:
+        '201':
+          description: Job request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitRequestResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Not allowed for this operation
+        '404':
+          description: Not found
+        '409':
+          description: Conflict
+        '500':
+          description: Scheduling sub-system error
+  /requests/{requestId}:
+    get:
+      operationId: getJobRequest
+      summary: Get a specific job request by ID
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Job request detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetails'
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: >
+        Basic authentication over HTTPS, using the credentials of a Fusion integration user.
+        Supported on most instances, but some are configured to reject it in favour of OAuth2.
+    oauth2:
+      type: oauth2
+      description: >
+        OAuth2 client credentials against the instance's Oracle Identity Cloud Service (IDCS)
+        token endpoint. The token URL is entirely instance-specific - the value below is a
+        placeholder and must be replaced with the target instance's IDCS token endpoint.
+      flows:
+        clientCredentials:
+          tokenUrl: https://your-idcs-instance.identity.oraclecloud.com/oauth2/v1/token
+          scopes: {}
+  schemas:
+    RequestParameter:
+      type: object
+      required: [name, paramType]
+      properties:
+        name:
+          type: string
+        paramType:
+          type: string
+          enum: [BOOLEAN, LONG, INTEGER, DATETIME, STRING]
+        value:
+          type: string
+        scope:
+          type: string
+
+    RequestLink:
+      type: object
+      required: [rel, href]
+      properties:
+        rel:
+          type: string
+          enum: [self, parentRequest, cancel, forceCancel, hold, release, subscribe, permissions, executionStatus, absParentRequest, instanceParent]
+        href:
+          type: string
+
+    Recurrence:
+      type: object
+      required: [icalString]
+      properties:
+        icalString:
+          type: string
+          description: RFC 5545 RRULE recurrence pattern.
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+
+    ScheduleBase:
+      type: object
+      properties:
+        recurrences:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recurrence'
+        timezone:
+          type: string
+          description: Olson database format, e.g. Asia/Colombo.
+        inclusions:
+          type: array
+          items:
+            type: string
+        exclusions:
+          type: array
+          items:
+            type: string
+
+    CallbackSubscriptionRequest:
+      type: object
+      required: [callbackUrlPrefix, callbackResourcePath]
+      properties:
+        callbackUrlPrefix:
+          type: string
+        callbackResourcePath:
+          type: string
+        securityScheme:
+          type: string
+          enum: [OWSM_GPA, OWSM_LPA, DIRECT_OAUTH]
+          default: OWSM_GPA
+        accessTokenUri:
+          type: string
+        clientId:
+          type: string
+        clientSecret:
+          type: string
+          format: password
+        ouath2ClientCsfKey:
+          type: string
+
+    SubmitRequestBody:
+      type: object
+      required: [jobDefinitionId]
+      properties:
+        product:
+          type: string
+        requestCategory:
+          type: string
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 9
+          default: 4
+        retries:
+          type: integer
+          default: 0
+        executePast:
+          type: boolean
+          default: true
+        requestTimeout:
+          type: integer
+          format: int64
+        requestLogLevel:
+          type: string
+        description:
+          type: string
+        jobDefinitionId:
+          type: string
+          description: Metadata object ID for the job definition or job set being submitted.
+        requestParameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestParameter'
+        schedule:
+          $ref: '#/components/schemas/ScheduleBase'
+        scheduleId:
+          type: string
+          description: Mutually exclusive with `schedule`.
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        application:
+          type: string
+        callbackSubscription:
+          $ref: '#/components/schemas/CallbackSubscriptionRequest'
+
+    SubmitRequestResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestLink'
+
+    RequestDetails:
+      type: object
+      properties:
+        requestId:
+          type: integer
+          format: int64
+        description:
+          type: string
+        requestParameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestParameter'
+        jobDefinitionId:
+          type: string
+        application:
+          type: string
+        state:
+          type: string
+        stateDescription:
+          type: string
+        errorType:
+          type: string
+          enum: [SYSTEM, BUSINESS, TIMEOUT, MIXED_NON_BUSINESS, MIXED_BUSINESS]
+        priority:
+          type: integer
+        requestType:
+          type: string
+          enum: [SINGLETON, RECUR_PARENT, RECUR_CHILD, JOBSET_SINGLETON, JOBSET_STEP, JOBSET_RECUR_PARENT, JOBSET_RECUR_CHILD, SUB_REQUEST, UNKNOWN]
+        submitter:
+          type: string
+        requestedStartTime:
+          type: string
+          format: date-time
+        submissionTime:
+          type: string
+          format: date-time
+        processStartTime:
+          type: string
+          format: date-time
+        processEndTime:
+          type: string
+          format: date-time
+        completedTime:
+          type: string
+          format: date-time
+        elapsedTime:
+          type: integer
+          format: int64
+          description: Milliseconds.
+        isCancellable:
+          type: boolean
+        isHoldable:
+          type: boolean
+        isForceCancelAllowed:
+          type: boolean
+        schedule:
+          $ref: '#/components/schemas/ScheduleBase'
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestLink'
+
+    RequestQueryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestDetails'
+        count:
+          type: integer
+        pageIndex:
+          type: integer
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestLink'
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              type:
+                type: string
+              title:
+                type: string
+              status:
+                type: integer
+              detail:
+                type: string
+              errorCode:
+                type: string
