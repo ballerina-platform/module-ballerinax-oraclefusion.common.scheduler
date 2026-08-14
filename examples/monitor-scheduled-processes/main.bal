@@ -30,7 +30,7 @@ public function main() returns error? {
     scheduler:Client schedulerClient = check new ({auth: {username, password}}, serviceUrl);
 
     // Step 1: List the requests that are currently executing, newest first.
-    scheduler:RequestQueryResponse running = check schedulerClient->/requests(
+    scheduler:RequestQueryResponse running = check schedulerClient->queryJobRequests(
         queries = {
             q: "state eq \"RUNNING\"",
             orderBy: "submissionTime:desc",
@@ -46,7 +46,7 @@ public function main() returns error? {
     }
 
     // Step 2: Find the requests that ended in error.
-    scheduler:RequestQueryResponse failed = check schedulerClient->/requests(
+    scheduler:RequestQueryResponse failed = check schedulerClient->queryJobRequests(
         queries = {
             q: "state eq \"ERROR\"",
             orderBy: "completedTime:desc",
@@ -68,7 +68,7 @@ public function main() returns error? {
     }
 
     int requestId = failedItems[0].requestId ?: 0;
-    scheduler:RequestDetails details = check schedulerClient->/requests/[requestId]();
+    scheduler:RequestDetails details = check schedulerClient->getJobRequest(requestId);
 
     io:println(string `--- Detail for request ${requestId} ---`);
     io:println("Job definition:    ", details.jobDefinitionId ?: "N/A");

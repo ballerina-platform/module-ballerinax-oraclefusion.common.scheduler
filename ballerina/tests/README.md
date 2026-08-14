@@ -25,6 +25,7 @@ The suite covers every operation exposed by the connector:
 - `queryJobRequests` with a filter — exercises the `q`, `orderBy`, and `fields` query parameters.
 - `submitJobRequest` — submits a job request and asserts a request ID is returned.
 - `getJobRequest` — fetches a request resolved from the query response and asserts its ID and execution state.
+- `submitJobRequest` with a `requestExecutionContext` — asserts the sub-request execution context is transmitted, by checking the mock echoes the supplied parent through a `parentRequest` link. `mock_tests`-only: a valid `requestHandle` can only come from inside a running ESS job, so it cannot be fabricated against a live instance.
 - `submitJobRequest` with an empty `jobDefinitionId` — asserts the connector surfaces the service's `400` as an error. This is a `mock_tests`-only case, since a live instance would reject it with an instance-specific message.
 
 The mock server implements the three endpoints on `http://localhost:9090/ess/rest/scheduler/v1` and starts automatically with `bal test`.

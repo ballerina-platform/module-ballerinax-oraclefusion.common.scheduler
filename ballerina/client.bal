@@ -56,23 +56,25 @@ public isolated client class Client {
         return;
     }
 
+    # Get a specific job request by ID
+    #
+    # + headers - Headers to be sent with the request 
+    # + queries - Queries to be sent with the request 
+    # + return - Job request detail 
+    remote isolated function getJobRequest(int requestId, map<string|string[]> headers = {}, *GetJobRequestQueries queries) returns RequestDetails|error {
+        string resourcePath = string `/requests/${getEncodedUri(requestId)}`;
+        resourcePath = resourcePath + check getPathForQueryParam(queries);
+        return self.clientEp->get(resourcePath, headers);
+    }
+
     # Query scheduled process (ESS) job requests
     #
     # + headers - Headers to be sent with the request 
     # + queries - Queries to be sent with the request 
     # + return - Matching job requests 
-    resource isolated function get requests(map<string|string[]> headers = {}, *QueryJobRequestsQueries queries) returns RequestQueryResponse|error {
+    remote isolated function queryJobRequests(map<string|string[]> headers = {}, *QueryJobRequestsQueries queries) returns RequestQueryResponse|error {
         string resourcePath = string `/requests`;
         resourcePath = resourcePath + check getPathForQueryParam(queries);
-        return self.clientEp->get(resourcePath, headers);
-    }
-
-    # Get a specific job request by ID
-    #
-    # + headers - Headers to be sent with the request 
-    # + return - Job request detail 
-    resource isolated function get requests/[int requestId](map<string|string[]> headers = {}) returns RequestDetails|error {
-        string resourcePath = string `/requests/${getEncodedUri(requestId)}`;
         return self.clientEp->get(resourcePath, headers);
     }
 
@@ -80,7 +82,7 @@ public isolated client class Client {
     #
     # + headers - Headers to be sent with the request 
     # + return - Job request created 
-    resource isolated function post requests(SubmitRequestBody payload, map<string|string[]> headers = {}) returns SubmitRequestResponse|error {
+    remote isolated function submitJobRequest(SubmitRequestBody payload, map<string|string[]> headers = {}) returns SubmitRequestResponse|error {
         string resourcePath = string `/requests`;
         http:Request request = new;
         json jsonBody = payload.toJson();

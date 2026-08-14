@@ -45,6 +45,16 @@ public type Recurrence record {
     string startDate?;
 };
 
+# Represents the Queries record for the operation: getJobRequest
+public type GetJobRequestQueries record {
+    # Comma-separated list of link relations to return, e.g. "links=cancel". Filters the `links` collection in the response.
+    string links?;
+    # Comma-separated list of fields to return, e.g. "fields=requestId".
+    string fields?;
+    # Comma-separated list of fields to exclude from the information returned, e.g. "excludeFields=jobDefinitionId".
+    string excludeFields?;
+};
+
 public type RequestParameter record {
     "BOOLEAN"|"LONG"|"INTEGER"|"DATETIME"|"STRING" paramType;
     string scope?;
@@ -72,6 +82,20 @@ public type ProxyConfig record {|
     string password = "";
 |};
 
+# Represents the Queries record for the operation: queryJobRequests
+public type QueryJobRequestsQueries record {
+    # SCIM-style filter, e.g. state eq "RUNNING". Queryable fields include requestId, absParentRequestId, description, application, product, requestCategory, runAsUser, executionType, jobDefinitionId, state, priority, processStartTime, processEndTime, requestedStartTime, requestedEndTime, submissionTime, parentRequestId, elapsedTime, submitter, requestType, errorType, completedTime, and more.
+    string q?;
+    # fieldName[:asc|desc], e.g. name:asc
+    string orderBy?;
+    # Comma-separated list of request IDs to return.
+    string id?;
+    # Comma-separated list of fields to include in the response.
+    string fields?;
+    # Comma-separated list of fields to exclude from the response.
+    string excludeFields?;
+};
+
 public type SubmitRequestBody record {
     string product?;
     # Metadata object ID for the job definition or job set being submitted.
@@ -85,6 +109,8 @@ public type SubmitRequestBody record {
     # Number of automatic retries on failure. Oracle applies its own default (documented as 0) when omitted.
     int retries?;
     ScheduleBase schedule?;
+    # The request execution context of the current job request. Only used when creating sub-requests - it identifies the running request that is creating them.
+    RequestExecutionContextIn requestExecutionContext?;
     string application?;
     string requestCategory?;
     string startTime?;
@@ -95,20 +121,6 @@ public type SubmitRequestBody record {
     int requestTimeout?;
     # Mutually exclusive with `schedule`.
     string scheduleId?;
-};
-
-# Represents the Queries record for the operation: queryJobRequests
-public type QueryJobRequestsQueries record {
-    # SCIM-style filter, e.g. state eq "RUNNING". Queryable fields include requestId, absParentRequestId, description, application, product, requestCategory, runAsUser, executionType, jobDefinitionId, state, priority, processStartTime, processEndTime, requestedStartTime, requestedEndTime, submissionTime, parentRequestId, elapsedTime, submitter, requestType, errorType, completedTime, and more.
-    string q?;
-    # fieldName[:asc|desc], e.g. name:asc
-    string orderBy?;
-    # Comma-separated list of request IDs to return.
-    string id?;
-    # Comma-separated list of fields to include in the response.
-    string fields?;
-    # Comma-separated list of fields to exclude from the response.
-    string excludeFields?;
 };
 
 public type RequestDetails record {
@@ -155,6 +167,11 @@ public type RequestLink record {
 public type SubmitRequestResponse record {
     RequestLink[] links?;
     int id?;
+};
+
+public type RequestExecutionContextIn record {
+    string requestHandle;
+    int requestId;
 };
 
 # Provides a set of configurations for controlling the behaviours when communicating with a remote HTTP endpoint.

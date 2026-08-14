@@ -61,7 +61,7 @@ public function main() returns error? {
         ]
     };
 
-    scheduler:SubmitRequestResponse submission = check schedulerClient->/requests.post(payload);
+    scheduler:SubmitRequestResponse submission = check schedulerClient->submitJobRequest(payload);
     int? submittedId = submission.id;
     if submittedId is () {
         return error("The scheduler did not return a request ID for the submitted job.");
@@ -73,7 +73,7 @@ public function main() returns error? {
     scheduler:RequestDetails details = {};
     boolean reachedTerminalState = false;
     foreach int attempt in 1 ... maxPollAttempts {
-        details = check schedulerClient->/requests/[submittedId]();
+        details = check schedulerClient->getJobRequest(submittedId);
         state = details.state ?: "UNKNOWN";
         io:println(string `Attempt ${attempt}: state = ${state}`);
 

@@ -209,6 +209,19 @@ isolated function project(RequestDetails[] items, string? fields, string? exclud
     return projected;
 }
 
+// Restricts `RequestDetails.links` to the requested link relations, e.g. `links=self,cancel`.
+isolated function filterLinks(RequestDetails item, string? links) returns RequestDetails {
+    if links is () {
+        return item;
+    }
+    string[] wanted = splitCsv(links);
+    RequestDetails restricted = item.clone();
+    restricted.links = from RequestLink link in item.links ?: []
+        where wanted.indexOf(link.rel) !is ()
+        select link;
+    return restricted;
+}
+
 // Splits a comma-separated parameter value, trimming each entry.
 isolated function splitCsv(string value) returns string[] {
     return from string entry in regexp:split(re `,`, value)
@@ -247,8 +260,8 @@ service /ess/rest/scheduler/v1 on ep0 {
     # Get a specific job request by ID
     #
     # + return - Job request detail
-    resource function get requests/[int requestId]() returns RequestDetails {
-        return {
+    resource function get requests/[int requestId](string? fields, string? excludeFields, string? links) returns RequestDetails {
+        RequestDetails details = {
             requestId: requestId,
             description: "Import Payables Invoices",
             jobDefinitionId: "oracle/apps/ess/financials/payables/invoices/transactions/ImportPayablesInvoicesJob",
@@ -283,6 +296,9 @@ service /ess/rest/scheduler/v1 on ep0 {
                 }
             ]
         };
+        // Filter the link relations first, then project - so `excludeFields=links` still drops the
+        // whole field rather than leaving a filtered remnant behind.
+        return project([filterLinks(details, links)], fields, excludeFields)[0];
     }
 
     # Submit a new scheduled process (ESS) job request
@@ -306,18 +322,28 @@ service /ess/rest/scheduler/v1 on ep0 {
                 }
             };
         }
-        return {
-            id: 300000012345680,
-            links: [
-                {
-                    rel: "self",
-                    href: "https://your-fusion-instance.fa.us2.oraclecloud.com/ess/rest/scheduler/v1/requests/300000012345680"
-                },
-                {
-                    rel: "cancel",
-                    href: "https://your-fusion-instance.fa.us2.oraclecloud.com/ess/rest/scheduler/v1/requests/300000012345680/cancel"
-                }
-            ]
-        };
+        RequestLink[] links = [
+            {
+                rel: "self",
+                href: "https://your-fusion-instance.fa.us2.oraclecloud.com/ess/rest/scheduler/v1/requests/300000012345680"
+            },
+            {
+                rel: "cancel",
+                href: "https://your-fusion-instance.fa.us2.oraclecloud.com/ess/rest/scheduler/v1/requests/300000012345680/cancel"
+            }
+        ];
+
+        // A submission that carries `requestExecutionContext` is creating a sub-request, so echo the
+        // supplied parent through a `parentRequest` link. This exists so the test suite can prove the
+        // connector transmitted the field - it is not a claim about how ESS numbers sub-requests.
+        RequestExecutionContextIn? executionContext = payload.requestExecutionContext;
+        if executionContext is RequestExecutionContextIn {
+            links.push({
+                rel: "parentRequest",
+                href: string `https://your-fusion-instance.fa.us2.oraclecloud.com/ess/rest/scheduler/v1/requests/${executionContext.requestId}`
+            });
+        }
+
+        return {id: 300000012345680, links: links};
     }
 }

@@ -99,7 +99,7 @@ Now, utilize the available connector operations. The following snippet lists the
 
 ```ballerina
 public function main() returns error? {
-    scheduler:RequestQueryResponse response = check schedulerClient->/requests(
+    scheduler:RequestQueryResponse response = check schedulerClient->queryJobRequests(
         queries = {q: "state eq \"RUNNING\"", orderBy: "submissionTime:desc"}
     );
     io:println(response);

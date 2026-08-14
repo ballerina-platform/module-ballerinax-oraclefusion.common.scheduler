@@ -108,6 +108,25 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: fields
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of fields to return, e.g. "fields=requestId".
+        - name: excludeFields
+          in: query
+          schema:
+            type: string
+          description: >
+            Comma-separated list of fields to exclude from the information returned,
+            e.g. "excludeFields=jobDefinitionId".
+        - name: links
+          in: query
+          schema:
+            type: string
+          description: >
+            Comma-separated list of link relations to return, e.g. "links=cancel". Filters the
+            `links` collection in the response.
       responses:
         '200':
           description: Job request detail
@@ -214,6 +233,16 @@ components:
         ouath2ClientCsfKey:
           type: string
 
+    RequestExecutionContextIn:
+      type: object
+      required: [requestHandle, requestId]
+      properties:
+        requestHandle:
+          type: string
+        requestId:
+          type: integer
+          format: int64
+
     SubmitRequestBody:
       type: object
       required: [jobDefinitionId]
@@ -245,6 +274,12 @@ components:
           type: string
         description:
           type: string
+        requestExecutionContext:
+          allOf:
+            - $ref: '#/components/schemas/RequestExecutionContextIn'
+          description: >
+            The request execution context of the current job request. Only used when creating
+            sub-requests - it identifies the running request that is creating them.
         jobDefinitionId:
           type: string
           description: Metadata object ID for the job definition or job set being submitted.

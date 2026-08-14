@@ -54,8 +54,13 @@ bal openapi align -i ../docs/spec/flattened_openapi.yaml -o ../docs/spec
 
 # 2. Generate the client from the sanitized, aligned specification
 bal openapi -i ../docs/spec/aligned_ballerina_openapi.yaml --mode client \
-    --license ../docs/license.txt -o .
+    --license ../docs/license.txt -o . --client-methods remote
 ```
+
+`--client-methods remote` generates remote methods named after each `operationId`
+(`queryJobRequests`, `getJobRequest`, `submitJobRequest`) instead of the default resource methods
+(`->/requests`, `->/requests/[id]`, `->/requests.post`). Dropping the flag regenerates a
+resource-method client and breaks every call site in `tests/`, `examples/` and the READMEs.
 
 The mock service used by the tests is generated from the same aligned specification:
 

@@ -44,10 +44,15 @@ isolated function initClient() returns Client|error {
     groups: ["live_tests", "mock_tests"]
 }
 isolated function testQueryJobRequests() returns error? {
-    RequestQueryResponse response = check scheduler->/requests();
+    RequestQueryResponse response = check scheduler->queryJobRequests();
     test:assertTrue(response.items !is (), "Expected an items collection in the query response");
     RequestDetails[] items = response.items ?: [];
-    test:assertTrue(items.length() > 0, "Expected at least one job request");
+    if items.length() == 0 {
+        // A live tenant may legitimately hold no job requests yet, so only the response shape is
+        // guaranteed there. The mock always serves fixtures, so an empty collection is a failure.
+        test:assertTrue(isLiveServer, "Expected at least one job request from the mock server");
+        return;
+    }
     test:assertTrue(items[0].requestId !is (), "Expected each job request to carry a requestId");
 }
 
@@ -55,11 +60,18 @@ isolated function testQueryJobRequests() returns error? {
     groups: ["live_tests", "mock_tests"]
 }
 isolated function testQueryJobRequestsWithFilter() returns error? {
-    RequestQueryResponse response = check scheduler->/requests(
+    RequestQueryResponse response = check scheduler->queryJobRequests(
         queries = {q: "state eq \"SUCCEEDED\"", orderBy: "submissionTime:desc", fields: "requestId,state,description"}
     );
     RequestDetails[] items = response.items ?: [];
-    test:assertTrue(items.length() > 0, "Expected at least one SUCCEEDED job request");
+    if items.length() == 0 {
+        // Nothing in this suite can produce a SUCCEEDED request - a submitted request is still
+        // WAIT/READY/RUNNING when the test ends - so on a live tenant this depends entirely on
+        // pre-existing history. The per-item filter and projection checks below still run whenever
+        // the tenant does have SUCCEEDED requests.
+        test:assertTrue(isLiveServer, "Expected at least one SUCCEEDED job request from the mock server");
+        return;
+    }
 
     string previousSubmissionTime = "";
     foreach RequestDetails item in items {
@@ -87,9 +99,13 @@ isolated function testQueryJobRequestsWithFilter() returns error? {
 }
 isolated function testQueryJobRequestsByIdAndExcludeFields() returns error? {
     // Resolve a real request ID first so the test works against a live instance too.
-    RequestQueryResponse all = check scheduler->/requests(queries = {orderBy: "submissionTime:desc"});
+    RequestQueryResponse all = check scheduler->queryJobRequests(queries = {orderBy: "submissionTime:desc"});
     RequestDetails[] allItems = all.items ?: [];
-    test:assertTrue(allItems.length() > 0, "Cannot resolve a requestId - the unfiltered query returned no items");
+    if allItems.length() == 0 {
+        // No request to filter on. Live tenants may be empty; the mock never is.
+        test:assertTrue(isLiveServer, "Cannot resolve a requestId - the mock server returned no items");
+        return;
+    }
 
     string previousSubmissionTime = "";
     foreach RequestDetails item in allItems {
@@ -106,7 +122,7 @@ isolated function testQueryJobRequestsByIdAndExcludeFields() returns error? {
         test:assertFail("The query response did not carry a requestId to filter on");
     }
 
-    RequestQueryResponse response = check scheduler->/requests(
+    RequestQueryResponse response = check scheduler->queryJobRequests(
         queries = {id: resolvedRequestId.toString(), excludeFields: "requestParameters,links"}
     );
 
@@ -134,7 +150,7 @@ isolated function testSubmitJobRequest() returns error? {
             {name: "BusinessUnit", paramType: "STRING", value: "US1 Business Unit"}
         ]
     };
-    SubmitRequestResponse response = check scheduler->/requests.post(payload);
+    SubmitRequestResponse response = check scheduler->submitJobRequest(payload);
     test:assertTrue(response.id !is (), "Expected the submitted request to return an id");
 }
 
@@ -143,7 +159,7 @@ isolated function testSubmitJobRequest() returns error? {
     dependsOn: [testSubmitJobRequest]
 }
 isolated function testGetJobRequest() returns error? {
-    RequestQueryResponse queryResponse = check scheduler->/requests();
+    RequestQueryResponse queryResponse = check scheduler->queryJobRequests();
     RequestDetails[] items = queryResponse.items ?: [];
     test:assertTrue(items.length() > 0, "Cannot resolve a requestId to fetch - the query returned no items");
 
@@ -154,9 +170,77 @@ isolated function testGetJobRequest() returns error? {
         test:assertFail("The query response did not carry a requestId to fetch");
     }
 
-    RequestDetails response = check scheduler->/requests/[resolvedRequestId]();
+    RequestDetails response = check scheduler->getJobRequest(resolvedRequestId);
     test:assertEquals(response.requestId, resolvedRequestId, "Fetched the wrong job request");
     test:assertTrue(response.state !is (), "Expected the job request to carry an execution state");
+}
+
+@test:Config {
+    groups: ["live_tests", "mock_tests"],
+    dependsOn: [testSubmitJobRequest]
+}
+isolated function testGetJobRequestWithFieldsAndLinks() returns error? {
+    // Resolve a real request ID first so the test works against a live instance too.
+    RequestQueryResponse queryResponse = check scheduler->queryJobRequests();
+    RequestDetails[] items = queryResponse.items ?: [];
+    test:assertTrue(items.length() > 0, "Cannot resolve a requestId to fetch - the query returned no items");
+
+    int? resolvedRequestId = items[0].requestId;
+    if resolvedRequestId is () {
+        test:assertFail("The query response did not carry a requestId to fetch");
+    }
+
+    // `fields` was applied - the requested fields are present, anything outside is absent.
+    RequestDetails projected = check scheduler->getJobRequest(resolvedRequestId,
+        queries = {fields: "requestId,state,links"}
+    );
+    test:assertTrue(projected.requestId !is (), "`requestId` was requested but is missing");
+    test:assertTrue(projected.state !is (), "`state` was requested but is missing");
+    test:assertTrue(projected.submitter is (), "`submitter` was outside `fields` but was returned");
+    test:assertTrue(projected.requestParameters is (), "`requestParameters` was outside `fields` but was returned");
+
+    // `excludeFields` was applied - the excluded field is gone, others survive.
+    RequestDetails trimmed = check scheduler->getJobRequest(resolvedRequestId,
+        queries = {excludeFields: "requestParameters,jobDefinitionId"}
+    );
+    test:assertTrue(trimmed.requestParameters is (), "`requestParameters` was excluded but was returned");
+    test:assertTrue(trimmed.jobDefinitionId is (), "`jobDefinitionId` was excluded but was returned");
+    test:assertTrue(trimmed.state !is (), "`state` was not excluded and should have been returned");
+
+    // `links` was applied - only the requested relation comes back.
+    RequestDetails linked = check scheduler->getJobRequest(resolvedRequestId, queries = {links: "self"});
+    RequestLink[] relations = linked.links ?: [];
+    test:assertTrue(relations.length() > 0, "Expected the `self` link relation to be returned");
+    foreach RequestLink link in relations {
+        test:assertEquals(link.rel, "self", "The `links` filter was not applied to the result");
+    }
+}
+
+@test:Config {
+    groups: ["mock_tests"]
+}
+isolated function testSubmitSubRequestWithExecutionContext() returns error? {
+    // `requestExecutionContext` identifies the running request creating a sub-request, so a valid
+    // `requestHandle` can only come from inside an executing ESS job. That cannot be fabricated
+    // against a live instance, which is why this case is `mock_tests`-only.
+    SubmitRequestBody payload = {
+        jobDefinitionId,
+        application: "FinancialsEss",
+        description: "Sub-request submitted by the Ballerina connector test suite",
+        requestExecutionContext: {requestHandle: "test-request-handle", requestId: 300000012345678}
+    };
+
+    SubmitRequestResponse response = check scheduler->submitJobRequest(payload);
+    test:assertTrue(response.id !is (), "Expected the submitted sub-request to return an id");
+
+    // The parent came back, so `requestExecutionContext` reached the server.
+    RequestLink[] links = response.links ?: [];
+    RequestLink[] parentLinks = from RequestLink link in links
+        where link.rel == "parentRequest"
+        select link;
+    test:assertEquals(parentLinks.length(), 1, "`requestExecutionContext` was not transmitted");
+    test:assertTrue(parentLinks[0].href.endsWith("/300000012345678"),
+            "The `parentRequest` link does not reference the supplied parent requestId");
 }
 
 @test:Config {
@@ -164,6 +248,6 @@ isolated function testGetJobRequest() returns error? {
 }
 isolated function testSubmitJobRequestWithEmptyJobDefinition() returns error? {
     SubmitRequestBody payload = {jobDefinitionId: ""};
-    SubmitRequestResponse|error response = scheduler->/requests.post(payload);
+    SubmitRequestResponse|error response = scheduler->submitJobRequest(payload);
     test:assertTrue(response is error, "Expected an error for an empty jobDefinitionId");
 }
