@@ -5,8 +5,8 @@ name = "oraclefusion.common.scheduler"
 version = "0.1.0"
 license = ["Apache-2.0"]
 authors = ["Ballerina"]
-keywords = []
-# icon = "icon.png" # TODO: update icon.png
+keywords = ["Type/Connector", "Vendor/Oracle", "Area/ERP & Business Operations", "Oracle Fusion", "Scheduler", "ESS"]
+icon = "icon.png"
 repository = "https://github.com/ballerina-platform/module-ballerinax-oraclefusion.common.scheduler"
 
 [build-options]
