@@ -5,12 +5,6 @@ info:
     Hand-authored OpenAPI 3.0 contract for Oracle Fusion Cloud's generic Enterprise
     Scheduler (ESS) REST API (introduced in release 23B), used to submit and monitor
     scheduled process/job requests.
-
-    Oracle does not publish a machine-readable spec for this API - this document was
-    reconstructed from Oracle's public REST API reference documentation
-    (docs.oracle.com .../farca/api-scheduler.html and
-    .../farca/op-ess-rest-scheduler-v1-requests-get.html /-post.html). Verify field
-    names/enums against the target instance's actual release before use.
   version: "26b"
 security:
   - basicAuth: []
@@ -72,6 +66,9 @@ paths:
         recurring execution. Returns the ID of the newly created request.
       requestBody:
         required: true
+        description: >
+          The job request to submit, identifying the job definition to run along with its
+          request parameters, execution options and optional schedule.
         content:
           application/json:
             schema:
@@ -108,6 +105,7 @@ paths:
           schema:
             type: integer
             format: int64
+          description: The ID of the job request to retrieve, as returned by `submitJobRequest`.
         - name: fields
           in: query
           schema:
@@ -157,30 +155,55 @@ components:
     RequestParameter:
       type: object
       required: [name, paramType]
+      description: >
+        A single job-specific parameter carried with a job request. The scheduler passes these
+        through to the job definition being run.
       properties:
         name:
           type: string
+          description: Name of the parameter, as declared by the job definition.
         paramType:
           type: string
           enum: [BOOLEAN, LONG, INTEGER, DATETIME, STRING]
+          description: >
+            Data type of `value`, so the scheduler can interpret it as the type the job definition
+            expects.
         value:
           type: string
+          description: >
+            Value of the parameter. Always carried as a string and interpreted according to
+            `paramType`.
         scope:
           type: string
+          description: >
+            Scope the parameter applies to. Relevant for job sets, where a parameter can target an
+            individual step rather than the set as a whole.
 
     RequestLink:
       type: object
       required: [rel, href]
+      description: >
+        A hypermedia link on a job request, giving the URL of a related resource or of an action
+        that can be performed on the request.
       properties:
         rel:
           type: string
           enum: [self, parentRequest, cancel, forceCancel, hold, release, subscribe, permissions, executionStatus, absParentRequest, instanceParent]
+          description: >
+            Relation identifying what the link points to. `self`, `parentRequest`,
+            `absParentRequest` and `instanceParent` address requests; `cancel`, `forceCancel`,
+            `hold`, `release` and `subscribe` address actions on this request; `permissions` and
+            `executionStatus` address further detail about it.
         href:
           type: string
+          description: URL of the related resource or action.
 
     Recurrence:
       type: object
       required: [icalString]
+      description: >
+        One recurrence pattern within a schedule, expressed as an iCalendar recurrence rule with an
+        optional active window.
       properties:
         icalString:
           type: string
@@ -188,17 +211,26 @@ components:
         startDate:
           type: string
           format: date-time
+          description: Earliest date-time at which this pattern starts producing occurrences.
         endDate:
           type: string
           format: date-time
+          description: Date-time after which this pattern stops producing occurrences.
 
     ScheduleBase:
       type: object
+      description: >
+        An inline schedule for a job request, defining when and how often it recurs. Supply this
+        instead of `scheduleId` to define the schedule with the request rather than referencing one
+        that already exists on the instance.
       properties:
         recurrences:
           type: array
           items:
             $ref: '#/components/schemas/Recurrence'
+          description: >
+            Recurrence patterns that generate the schedule's occurrences. Multiple patterns
+            combine, so one schedule can mix, for example, a weekday rule with a month-end rule.
         timezone:
           type: string
           description: Olson database format, e.g. Asia/Colombo.
@@ -206,51 +238,95 @@ components:
           type: array
           items:
             type: string
+          description: >
+            Additional date-times to run at, over and above the occurrences the recurrence
+            patterns generate.
         exclusions:
           type: array
           items:
             type: string
+          description: >
+            Date-times to skip, removing occurrences the recurrence patterns would otherwise
+            generate.
 
     CallbackSubscriptionRequest:
       type: object
       required: [callbackUrlPrefix, callbackResourcePath]
+      description: >
+        A subscription that has the scheduler call an external endpoint as the job request changes
+        state, as an alternative to polling `getJobRequest`.
       properties:
         callbackUrlPrefix:
           type: string
+          description: >
+            Scheme, host and port of the callback endpoint, e.g.
+            `https://callbacks.example.com`.
         callbackResourcePath:
           type: string
+          description: >
+            Path of the callback endpoint, appended to `callbackUrlPrefix` to form the URL the
+            scheduler invokes.
         securityScheme:
           type: string
           enum: [OWSM_GPA, OWSM_LPA, DIRECT_OAUTH]
           default: OWSM_GPA
+          description: >
+            How the scheduler authenticates when invoking the callback. `OWSM_GPA` and `OWSM_LPA`
+            use Oracle Web Services Manager global and local policy attachments respectively;
+            `DIRECT_OAUTH` uses the OAuth2 client credentials supplied in the fields below.
         accessTokenUri:
           type: string
+          description: >
+            OAuth2 token endpoint the scheduler obtains a token from. Applies when
+            `securityScheme` is `DIRECT_OAUTH`.
         clientId:
           type: string
+          description: >
+            OAuth2 client identifier. Applies when `securityScheme` is `DIRECT_OAUTH`.
         clientSecret:
           type: string
           format: password
+          description: >
+            OAuth2 client secret. Applies when `securityScheme` is `DIRECT_OAUTH`.
         ouath2ClientCsfKey:
           type: string
+          description: >
+            Credential Store Framework (CSF) key holding the OAuth2 client credentials, as an
+            alternative to passing `clientId` and `clientSecret` directly. The misspelling of
+            "oauth2" is Oracle's and is kept so the payload matches the API.
 
     RequestExecutionContextIn:
       type: object
       required: [requestHandle, requestId]
+      description: >
+        Identifies the running job request that is submitting this one, so the scheduler records
+        the new request as its sub-request.
       properties:
         requestHandle:
           type: string
+          description: >
+            Opaque handle of the running request. Available only from inside an executing ESS job,
+            so it cannot be fabricated by an external caller.
         requestId:
           type: integer
           format: int64
+          description: ID of the running request that is creating the sub-request.
 
     SubmitRequestBody:
       type: object
       required: [jobDefinitionId]
+      description: A job request to submit to the Enterprise Scheduler.
       properties:
         product:
           type: string
+          description: >
+            Product the job definition belongs to. Used together with `application` to narrow where
+            the scheduler looks the definition up.
         requestCategory:
           type: string
+          description: >
+            Caller-assigned category for the request, available afterwards as a `q` filter on
+            `queryJobRequests`.
         priority:
           type: integer
           minimum: 0
@@ -270,10 +346,17 @@ components:
         requestTimeout:
           type: integer
           format: int64
+          description: >
+            Maximum time the request is allowed to run before the scheduler times it out. A request
+            stopped this way reports an `errorType` of `TIMEOUT`.
         requestLogLevel:
           type: string
+          description: Verbosity the scheduler logs the request's execution at.
         description:
           type: string
+          description: >
+            Human-readable description of the request, echoed back by `getJobRequest` and
+            `queryJobRequests`.
         requestExecutionContext:
           allOf:
             - $ref: '#/components/schemas/RequestExecutionContextIn'
@@ -287,110 +370,186 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RequestParameter'
+          description: Job-specific parameters passed through to the job definition.
         schedule:
-          $ref: '#/components/schemas/ScheduleBase'
+          allOf:
+            - $ref: '#/components/schemas/ScheduleBase'
+          description: >
+            Inline schedule that makes the request recur. Mutually exclusive with `scheduleId`.
         scheduleId:
           type: string
-          description: Mutually exclusive with `schedule`.
+          description: >
+            Identifier of a schedule that already exists on the instance, used instead of defining
+            one inline. Mutually exclusive with `schedule`.
         startTime:
           type: string
           format: date-time
+          description: >
+            When the request becomes eligible to run. Omit to have the scheduler run it as soon as
+            it can.
         endTime:
           type: string
           format: date-time
+          description: >
+            Point after which the request, or the remaining occurrences of its schedule, are no
+            longer run.
         application:
           type: string
+          description: >
+            Application the job definition is deployed in. Used together with `product` to narrow
+            where the scheduler looks the definition up.
         callbackSubscription:
-          $ref: '#/components/schemas/CallbackSubscriptionRequest'
+          allOf:
+            - $ref: '#/components/schemas/CallbackSubscriptionRequest'
+          description: >
+            Callback subscription notified as the request changes state, as an alternative to
+            polling `getJobRequest`.
 
     SubmitRequestResponse:
       type: object
+      description: The outcome of submitting a job request.
       properties:
         id:
           type: integer
           format: int64
+          description: >
+            ID of the newly created job request. Pass this to `getJobRequest` to track it.
         links:
           type: array
           items:
             $ref: '#/components/schemas/RequestLink'
+          description: >
+            Hypermedia links for the new request, typically including `self` and the actions
+            currently available on it.
 
     RequestDetails:
       type: object
+      description: >
+        Full detail of a single Enterprise Scheduler job request, covering how it was submitted,
+        where it has reached in its lifecycle, and which actions are currently available on it.
       properties:
         requestId:
           type: integer
           format: int64
+          description: ID of the request.
         description:
           type: string
+          description: Description supplied when the request was submitted.
         requestParameters:
           type: array
           items:
             $ref: '#/components/schemas/RequestParameter'
+          description: Job-specific parameters the request was submitted with.
         jobDefinitionId:
           type: string
+          description: Metadata object ID of the job definition or job set the request runs.
         application:
           type: string
+          description: Application the job definition is deployed in.
         state:
           type: string
+          description: >
+            Current lifecycle state of the request, e.g. WAIT, READY, RUNNING, SUCCEEDED, ERROR or
+            CANCELLED. Not restricted to those values - the scheduler defines further states, so
+            treat this as an open set rather than a fixed one.
         stateDescription:
           type: string
+          description: >
+            Human-readable explanation of `state`, carrying the reason when the request did not
+            succeed.
         errorType:
           type: string
           enum: [SYSTEM, BUSINESS, TIMEOUT, MIXED_NON_BUSINESS, MIXED_BUSINESS]
+          description: >
+            Class of failure when the request did not succeed. `SYSTEM` for scheduler or
+            infrastructure faults, `BUSINESS` for faults raised by the job itself, `TIMEOUT` when
+            the request exceeded its `requestTimeout`, and the two `MIXED_` prefixed values for job
+            sets whose steps failed in more than one of those ways.
         priority:
           type: integer
+          description: Priority the request was submitted with, 0-9.
         requestType:
           type: string
           enum: [SINGLETON, RECUR_PARENT, RECUR_CHILD, JOBSET_SINGLETON, JOBSET_STEP, JOBSET_RECUR_PARENT, JOBSET_RECUR_CHILD, SUB_REQUEST, UNKNOWN]
+          description: >
+            Where the request sits in the scheduler's request hierarchy - a one-off (`SINGLETON`), a
+            recurring parent or one of the children it generates (`RECUR_PARENT`, `RECUR_CHILD`),
+            the `JOBSET_` prefixed equivalents for job sets and their steps, or a sub-request
+            created by another running request (`SUB_REQUEST`).
         submitter:
           type: string
+          description: User who submitted the request.
         requestedStartTime:
           type: string
           format: date-time
+          description: >
+            Time the request was asked to start at, from either `startTime` on submission or the
+            schedule occurrence it came from.
         submissionTime:
           type: string
           format: date-time
+          description: Time the request was submitted to the scheduler.
         processStartTime:
           type: string
           format: date-time
+          description: >
+            Time the request actually began executing. Unset while it is still waiting to be picked
+            up.
         processEndTime:
           type: string
           format: date-time
+          description: Time the request finished executing.
         completedTime:
           type: string
           format: date-time
+          description: Time the request reached a terminal state and the scheduler finished with it.
         elapsedTime:
           type: integer
           format: int64
-          description: Milliseconds.
+          description: How long the request has been running, or ran for, in milliseconds.
         isCancellable:
           type: boolean
+          description: Whether `cancel` is available on the request in its current state.
         isHoldable:
           type: boolean
+          description: Whether `hold` is available on the request in its current state.
         isForceCancelAllowed:
           type: boolean
+          description: >
+            Whether `forceCancel` is available on the request in its current state, for when an
+            ordinary `cancel` does not take effect.
         schedule:
-          $ref: '#/components/schemas/ScheduleBase'
+          allOf:
+            - $ref: '#/components/schemas/ScheduleBase'
+          description: Schedule driving the request. Present on recurring requests.
         links:
           type: array
           items:
             $ref: '#/components/schemas/RequestLink'
+          description: >
+            Hypermedia links for this request, covering related requests and the actions currently
+            available on it. Narrow the set returned with the `links` query parameter.
 
     RequestQueryResponse:
       type: object
+      description: A page of job requests matching a `queryJobRequests` call.
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/RequestDetails'
+          description: The job requests on this page.
         count:
           type: integer
+          description: Number of requests returned in `items`.
         pageIndex:
           type: integer
+          description: Zero-based index of the page these results come from.
         links:
           type: array
           items:
             $ref: '#/components/schemas/RequestLink'
+          description: Hypermedia links for the collection, such as paging links.
 
   responses:
     BadRequest:
@@ -399,14 +558,20 @@ components:
         application/json:
           schema:
             type: object
+            description: RFC 7807 style problem detail describing why the request was rejected.
             properties:
               type:
                 type: string
+                description: URI identifying the problem type.
               title:
                 type: string
+                description: Short summary of the problem type.
               status:
                 type: integer
+                description: HTTP status code, repeated in the payload.
               detail:
                 type: string
+                description: Explanation of this particular occurrence of the problem.
               errorCode:
                 type: string
+                description: Oracle-specific error code for the failure.

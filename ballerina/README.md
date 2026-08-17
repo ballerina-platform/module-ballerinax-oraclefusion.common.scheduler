@@ -4,9 +4,15 @@
 
 The generic Scheduler REST API (introduced in Oracle Fusion release 23B) is the entry point for that work. It submits job requests against a job definition, queries requests with a SCIM-style filter, and reports the execution state of an individual request.
 
-The `ballerinax/oraclefusion.common.scheduler` package provides APIs to connect and interact with the Scheduler REST API endpoints of Oracle Fusion Cloud (`/ess/rest/scheduler/v1`). It supports the `submitJobRequest`, `queryJobRequests`, and `getJobRequest` operations.
+### Key Features
 
-Because the API is asynchronous, the typical flow is submit-then-poll: `submitJobRequest` returns as soon as the request is queued, and `getJobRequest` is polled until the request reaches a terminal state.
+- Submit a scheduled process against a job definition, with its job-specific request parameters, priority, retries, request timeout, and log level
+- Query job requests with SCIM-style filters (for example, `state eq "RUNNING"`), response field shaping via `fields`/`excludeFields`, request-ID selection, and ordering
+- Poll an individual request for its execution state, state description, submission and processing timestamps, elapsed time, and the parameters it was submitted with
+- Schedule recurring runs inline with iCal recurrence rules, a timezone, and date exclusions or inclusions — or reference an existing schedule by ID
+- Register a callback subscription so the scheduler notifies your endpoint as the request changes state, as an alternative to polling
+- Flexible authentication: HTTP Basic with Fusion integration user credentials, or OAuth2 client credentials against Oracle Identity Cloud Service (IDCS)
+- GraalVM compatible for native image builds
 
 ## Setup guide
 

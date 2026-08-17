@@ -20,7 +20,6 @@
 import ballerina/http;
 
 # Hand-authored OpenAPI 3.0 contract for Oracle Fusion Cloud's generic Enterprise Scheduler (ESS) REST API (introduced in release 23B), used to submit and monitor scheduled process/job requests.
-# Oracle does not publish a machine-readable spec for this API - this document was reconstructed from Oracle's public REST API reference documentation (docs.oracle.com .../farca/api-scheduler.html and .../farca/op-ess-rest-scheduler-v1-requests-get.html /-post.html). Verify field names/enums against the target instance's actual release before use.
 public isolated client class Client {
     final http:Client clientEp;
     # Gets invoked to initialize the `connector`.
@@ -58,6 +57,7 @@ public isolated client class Client {
 
     # Get a specific job request by ID
     #
+    # + requestId - The ID of the job request to retrieve, as returned by `submitJobRequest`.
     # + headers - Headers to be sent with the request 
     # + queries - Queries to be sent with the request 
     # + return - Job request detail 
@@ -81,6 +81,7 @@ public isolated client class Client {
     # Submit a new scheduled process (ESS) job request
     #
     # + headers - Headers to be sent with the request 
+    # + payload - The job request to submit, identifying the job definition to run along with its request parameters, execution options and optional schedule. 
     # + return - Job request created 
     remote isolated function submitJobRequest(SubmitRequestBody payload, map<string|string[]> headers = {}) returns SubmitRequestResponse|error {
         string resourcePath = string `/requests`;
