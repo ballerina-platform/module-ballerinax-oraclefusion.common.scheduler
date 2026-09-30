@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-    id "com.gradle.enterprise" version "3.2"
+    id "com.gradle.develocity" version "3.17.6"
 }
 
 rootProject.name = 'module-ballerinax-oraclefusion.common.scheduler'
@@ -33,9 +33,9 @@ include ':oraclefusion.common.scheduler-ballerina'
 
 project(':oraclefusion.common.scheduler-ballerina').projectDir = file("ballerina")
 
-gradleEnterprise {
+develocity {
     buildScan {
-        termsOfServiceUrl = 'https://gradle.com/terms-of-service'
-        termsOfServiceAgree = 'yes'
+        termsOfUseUrl = 'https://gradle.com/terms-of-service'
+        termsOfUseAgree = 'yes'
     }
 }

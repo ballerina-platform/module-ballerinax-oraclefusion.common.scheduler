@@ -57,8 +57,14 @@ allprojects {
 
 def moduleVersion = project.version.replace("-SNAPSHOT", "")
 
-task build {
-    dependsOn(':oraclefusion.common.scheduler-ballerina:build')
+if (!tasks.names.contains('build')) {
+    tasks.register('build') {
+        dependsOn(':oraclefusion.common.scheduler-ballerina:build')
+    }
+} else {
+    tasks.named('build') {
+        dependsOn(':oraclefusion.common.scheduler-ballerina:build')
+    }
 }
 
 release {
